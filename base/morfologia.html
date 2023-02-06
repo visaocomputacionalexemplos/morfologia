@@ -6,10 +6,25 @@
     <div style="border: thin solid black">
       <center>
         <h2>OpenCV.js Limiarizacao</h2>
-        <p id="status">OpenCV.js</p>
+        <p id="cors" style="display: none;">
+          Ocorreu ao processar a imagem ao carregar a imagem do computador.
+          
+          Cors: Para permitir que a aplicação carrega imagens do computador é preciso abrir o navegador sem o sistema de segurança.
+          <br />
+          <strong>Google Chrome</strong>
+          <br/>
+          Windows: chrome.exe --disable-web-security --disable-gpu --user-data-dir=~/chromeTemp
+          <br/>
+          Linux: google-chrome --disable-web-security --disable-gpu --user-data-dir=~/chromeTemp
+          <br/><br/>
+          Uma alternativa a este é rodar a aplicação na nuvel ou local via https (ssl).
+          <br/><br/>
+          Uma terceira alternativa é informar uma imagem disponível na núvel.
+        </p>
+        
         <div>
           <div>
-            <img src="" width="480" height="360" id="imageSrc"/>
+            <canvas id="canvasImg" width="480" height="360"></canvas>
             <canvas id="canvasPretoBranco" width="480" height="360"></canvas>
             <canvas id="canvasLimiarizado" width="480" height="360"></canvas>
           </div>
@@ -41,14 +56,23 @@
     </div>
 
     <script type="text/javascript">
-      /*Fix para usar imagem localmente*/
-      document.getElementById("imageSrc").crossOrigin = 'Anonymous';
-      document.getElementById("imageSrc").src = '../imgs/eletronicboard.jpg';
+      function carregarImagem() {
+        const canvas = document.getElementById("canvasImg");
+        const ctx = canvas.getContext("2d");
+        var imgObj = new Image();
+        imgObj.src = '../imgs/eletronicboard.jpg';
+        imgObj.onload = () => {
+          ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+        }
+        //imgObj.crossOrigin = 'Anonymous'
+      }
 
-      function carregarImagemEProcessarLimiarizacao() {
+      function processarLimiarizacao() {
+        if (!cv.Mat) return;
+
         try {
           //Carrega a imagem
-          const mat = cv.imread(document.getElementById("imageSrc"));
+          const mat = cv.imread(document.getElementById("canvasImg"));
 
           // Converte em tons de cinza
           cv.cvtColor(mat, mat, cv.COLOR_RGB2GRAY, 0);
@@ -61,6 +85,7 @@
           mat.delete();
         } catch (err) {
           console.log(err);
+          document.getElementById('cors').style.display = 'block';
         }
       }
 
@@ -77,7 +102,7 @@
         for (let x = 0; x < imagem.rows; x++) {
           for (let y = 0; y < imagem.cols; y++) {
             imagemSaida.ucharPtr(x, y)[0] = imagem.ucharPtr(x, y)[0];
-          }
+         }
         }
       }
 
@@ -104,6 +129,8 @@
       }
 
       function processarCodigoPessoal() {
+        if (!cv.Mat) return;
+        
         try {
           const centro = new cv.Point(-1, -1);
 
@@ -147,9 +174,13 @@
       const FPS = 1;
       function loop() {
         var begin = Date.now();
-        carregarImagemEProcessarLimiarizacao();
+
+        carregarImagem();
+        processarLimiarizacao();
         processarCodigoPessoal();
+
         var delay = 1000 / FPS - (Date.now() - begin);
+
         setTimeout(loop, delay);
       }
     </script>
