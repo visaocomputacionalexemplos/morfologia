@@ -1,0 +1,163 @@
+<head>
+  <meta charset="UTF-8">
+</head>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <body>
+    <div style="border: thin solid black">
+      <center>
+        <h2>OpenCV.js Limiarizacao</h2>
+        <p id="status">OpenCV.js</p>
+        <div>
+          <div>
+            <img src="" width="480" height="360" id="imageSrc"/>
+            <canvas id="canvasPretoBranco" width="480" height="360"></canvas>
+            <canvas id="canvasLimiarizado" width="480" height="360"></canvas>
+          </div>
+          <hr />
+
+          <div style="display: flex; justify-content: space-evenly;">
+            <div>
+              <h3>Erosão</h3>
+              <canvas id="canvasErosao" width="640" height="480"></canvas>
+            </div>
+            <div>
+              <h3>Dilatacao</h3>
+              <canvas id="canvasDilatacao" width="640" height="480"></canvas>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-evenly;">
+            <div>
+              <h3>Abertura</h3>
+              <canvas id="canvasAbertura" width="640" height="480"></canvas>
+            </div>
+            <div>
+              <h3>Fechamento</h3>
+              <canvas id="canvasFechamento" width="640" height="480"></canvas>  
+            </div>
+          </div>
+        </div>
+      </center>
+    </div>
+
+    <script type="text/javascript">
+      /*Fix para usar imagem localmente*/
+      document.getElementById("imageSrc").crossOrigin = 'Anonymous';
+      document.getElementById("imageSrc").src = '../imgs/eletronicboard.jpg';
+
+      function carregarImagemEProcessarLimiarizacao() {
+        try {
+          //Carrega a imagem
+          const mat = cv.imread(document.getElementById("imageSrc"));
+
+          // Converte em tons de cinza
+          cv.cvtColor(mat, mat, cv.COLOR_RGB2GRAY, 0);
+          cv.imshow("canvasPretoBranco", mat);
+
+          // Processa limiarização
+          cv.threshold(mat, mat, 100, 255, cv.THRESH_BINARY_INV);
+          cv.imshow("canvasLimiarizado", mat);
+
+          mat.delete();
+        } catch (err) {
+          console.log(err);
+        }
+      }
+
+      function nucleoFormatoCruz() {
+        return new cv.matFromArray(3, 3, cv.CV_8UC1,
+          [0, 1, 0, 
+           1, 1, 1, 
+           0, 1, 0]
+        );
+      }
+
+      function erosao(nucleo, centro, imagem, imagemSaida) {
+        //cv.erode(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+        for (let x = 0; x < imagem.rows; x++) {
+          for (let y = 0; y < imagem.cols; y++) {
+            imagemSaida.ucharPtr(x, y)[0] = imagem.ucharPtr(x, y)[0];
+          }
+        }
+      }
+
+      function dilatacao(nucleo, centro, imagem, imagemSaida) {
+        cv.dilate(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+      }
+
+      function abertura(nucleo, centro, imagem, imagemSaida) {
+        let imgTemporaria = new cv.Mat( imagem.rows, imagem.cols, imagem.type(), new cv.Scalar(0));
+        
+        erosao(nucleo, centro, imagem, imgTemporaria);
+        dilatacao(nucleo, centro, imgTemporaria, imagemSaida);
+
+        imgTemporaria.delete();
+      }
+
+      function fechamento(nucleo, centro, imagem, imagemSaida) {
+        let imgTemporaria = new cv.Mat( imagem.rows, imagem.cols, imagem.type(), new cv.Scalar(0));
+
+        dilatacao(nucleo, centro, imagem, imgTemporaria);
+        erosao(nucleo, centro, imgTemporaria, imagemSaida);
+
+        imgTemporaria.delete();
+      }
+
+      function processarCodigoPessoal() {
+        try {
+          const centro = new cv.Point(-1, -1);
+
+          const imagem = cv.imread(document.getElementById("canvasLimiarizado"));
+          cv.cvtColor(imagem, imagem, cv.COLOR_RGB2GRAY, 0);
+
+          const nucleo = nucleoFormatoCruz();
+          const imgErosao = new cv.Mat(imagem.rows,imagem.cols,imagem.type(),new cv.Scalar(0));
+          const imgDilatacao = new cv.Mat(imagem.rows,imagem.cols,imagem.type(),new cv.Scalar(0));
+          const imgAbertura = new cv.Mat(imagem.rows,imagem.cols,imagem.type(),new cv.Scalar(0));
+          const imgFechamento = new cv.Mat(imagem.rows,imagem.cols,imagem.type(),new cv.Scalar(0));
+
+          erosao(nucleo, centro, imagem, imgErosao);
+          dilatacao(nucleo, centro, imagem, imgDilatacao);
+          abertura(nucleo, centro, imagem, imgAbertura);
+          fechamento(nucleo, centro, imagem, imgDilatacao);
+
+          // Exibe as imagens
+          cv.imshow("canvasErosao", imgErosao);
+          cv.imshow("canvasDilatacao", imgDilatacao);
+          cv.imshow("canvasAbertura", imgDilatacao);
+          cv.imshow("canvasFechamento", imgDilatacao);
+
+          // Deleta as matrizes
+          imagem.delete();
+          nucleo.delete();
+          imgErosao.delete();
+          imgDilatacao.delete();
+          imgAbertura.delete();
+          imgFechamento.delete();
+        } catch (err) {
+          console.log(err);
+        }
+      }
+
+      /*Dispara loop após carregar opencv*/
+      function onOpenCvReady() {
+        loop();
+      }
+      /* Loop infinito */
+      const FPS = 1;
+      function loop() {
+        var begin = Date.now();
+        carregarImagemEProcessarLimiarizacao();
+        processarCodigoPessoal();
+        var delay = 1000 / FPS - (Date.now() - begin);
+        setTimeout(loop, delay);
+      }
+    </script>
+
+    <script
+      src="../lib/opencv.js"
+      type="text/javascript"
+      onload="onOpenCvReady();"
+    ></script>
+  </body>
+</html>

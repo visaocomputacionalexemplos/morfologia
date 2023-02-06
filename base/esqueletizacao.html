@@ -1,0 +1,73 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <body>
+    <div style="border: thin solid black">
+      <center>
+        <h2>OpenCV.js Limiarizacao</h2>
+        <p id="status">OpenCV.js</p>
+        <div>
+          <div class="row-align">
+            <video id="videoInput" autoplay width="480" height="360" muted="muted">
+              <source src="./videos/hands1.webm" type="video/webm">
+            </video>
+            <canvas id="canvasPretoBranco" width="480" height="360"></canvas>
+          </div>
+          <hr />
+          <div class="row-align">
+            <canvas id="canvasOutput" width="640" height="480"></canvas>
+          </div>
+        </div>
+      </center>
+    </div>
+
+    <script type="text/javascript">
+      /*Fix para usar imagem localmente*/
+      var video = document.getElementById("videoInput");
+
+      var src, pretoBranco, dst, cat, bgRemove;
+      /*Dispara loop após carregar opencv*/
+      function onOpenCvReady() {
+        video.crossOrigin = `Anonymous`;
+        video.play();
+
+        src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+        pretoBranco = new cv.Mat(video.height, video.width, cv.CV_8UC1);
+        dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
+        cap = new cv.VideoCapture(video);
+
+        bgRemove = new cv.BackgroundSubtractorMOG2(500, 16, true);
+
+        loop();
+      }
+
+      function processarCodigoPessoal() {
+        try {
+          cap.read(src);
+
+          cv.cvtColor(src, pretoBranco, cv.COLOR_RGB2GRAY, 0);
+          cv.imshow("canvasPretoBranco", pretoBranco);
+
+          bgRemove.apply(pretoBranco, dst);
+          cv.imshow("canvasOutput", dst);
+          
+        } catch (err) {
+          console.log(err);
+        }
+      }
+
+      /* Loop infinito */
+      const FPS = 10;
+      function loop() {
+        var begin = Date.now();
+        processarCodigoPessoal();
+        var delay = 1000 / FPS - (Date.now() - begin);
+        setTimeout(loop, delay);
+      }
+    </script>
+
+    <script
+      src="./opencv.js"
+      type="text/javascript"
+      onload="setTimeout(onOpenCvReady, 200);"
+    ></script>
+  </body>
+</html>
