@@ -60,7 +60,7 @@
         const canvas = document.getElementById("canvasImg");
         const ctx = canvas.getContext("2d");
         var imgObj = new Image();
-        imgObj.src = '../imgs/eletronicboard.jpg';
+        imgObj.src = '../../imgs/eletronicboard.jpg';
         imgObj.onload = () => {
           ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
         }
@@ -79,7 +79,7 @@
           cv.imshow("canvasPretoBranco", mat);
 
           // Processa limiarização
-          cv.threshold(mat, mat, 100, 255, cv.THRESH_BINARY_INV);
+          cv.threshold(mat, mat, 100, 255, cv.THRESH_BINARY);
           cv.imshow("canvasLimiarizado", mat);
 
           mat.delete();
@@ -91,17 +91,40 @@
 
       function nucleoFormatoCruz() {
         return new cv.matFromArray(3, 3, cv.CV_8UC1,
-          [0, 1, 0, 
+          [1, 1, 1, 
            1, 1, 1, 
-           0, 1, 0]
+           1, 1, 1]
         );
       }
 
       function erosao(nucleo, centro, imagem, imagemSaida) {
         //cv.erode(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
-        for (let x = 0; x < imagem.rows; x++) {
-          for (let y = 0; y < imagem.cols; y++) {
-            imagemSaida.ucharPtr(x, y)[0] = imagem.ucharPtr(x, y)[0];
+        //Percorre a imagem
+        for (let x = 0; x < imagem.cols; x++) {
+          for (let y = 0; y < imagem.rows; y++) {
+
+            let hasNucleo = true;
+            //Percorre o elemento estruturante (núcleo)
+            for (let j = 0; j < nucleo.cols; j++) {
+              for (let k = 0; k < nucleo.rows; k++) {
+                
+                //Verifica se o elemnto do nucleo deve ser checado
+                const nucleoTemValor = nucleo.ucharPtr(k, j)[0] > 0;
+                if (nucleoTemValor) {
+                  const col = x + j;
+                  const row = y + k;
+
+                  //Verifica se a imagem tem valor na mesma posição do núcleo
+                  const imagemTemValor = imagem.ucharPtr(row, col)[0] > 0;
+                  if (!imagemTemValor) {
+                    hasNucleo = false;
+                    break;
+                  }
+                }
+              }
+            }
+
+            imagemSaida.ucharPtr(y, x)[0] = hasNucleo ? 255 : 0;
          }
         }
       }
@@ -130,7 +153,7 @@
 
       function processarCodigoPessoal() {
         if (!cv.Mat) return;
-        
+
         try {
           const centro = new cv.Point(-1, -1);
 
@@ -186,7 +209,7 @@
     </script>
 
     <script
-      src="../lib/opencv.js"
+      src="../../lib/opencv.js"
       type="text/javascript"
       onload="onOpenCvReady();"
     ></script>
