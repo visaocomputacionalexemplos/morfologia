@@ -100,8 +100,8 @@
       function erosao(nucleo, centro, imagem, imagemSaida) {
         //cv.erode(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
         //Percorre a imagem
-        for (let x = 0; x < imagem.cols; x++) {
-          for (let y = 0; y < imagem.rows; y++) {
+        for (let x = centro.x; x < imagem.cols; x++) {
+          for (let y = centro.y; y < imagem.rows; y++) {
 
             let hasNucleo = true;
             //Percorre o elemento estruturante (núcleo)
@@ -111,8 +111,8 @@
                 //Verifica se o elemnto do nucleo deve ser checado
                 const nucleoTemValor = nucleo.ucharPtr(k, j)[0] > 0;
                 if (nucleoTemValor) {
-                  const col = x + j;
-                  const row = y + k;
+                  const col = x + j - centro.x;
+                  const row = y + k - centro.y;
 
                   //Verifica se a imagem tem valor na mesma posição do núcleo
                   const imagemTemValor = imagem.ucharPtr(row, col)[0] > 0;
@@ -130,7 +130,30 @@
       }
 
       function dilatacao(nucleo, centro, imagem, imagemSaida) {
-        cv.dilate(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+        //cv.dilate(imagem, imagemSaida, nucleo, centro, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+        //Percorre a imagem
+        for (let x = centro.x; x < imagem.cols; x++) {
+          for (let y = centro.y; y < imagem.rows; y++) {
+            //Verifica se o pixel da imagem possui valor positivo
+            const pixelComValor = imagem.ucharPtr(y, x)[0] > 0;
+            if (pixelComValor) {
+              //Percorre o elemento estruturante (núcleo)
+              for (let j = 0; j < nucleo.cols; j++) {
+                for (let k = 0; k < nucleo.rows; k++) {
+                  
+                  //Verifica se o elemnto do nucleo tem valor positivo
+                  const nucleoTemValor = nucleo.ucharPtr(k, j)[0] > 0;
+                  if (nucleoTemValor) {
+                    const col = x + j - centro.x;
+                    const row = y + k - centro.y;
+
+                    imagemSaida.ucharPtr(row, col)[0] = 255;
+                  }
+                }
+              }
+            }
+         }
+        }
       }
 
       function abertura(nucleo, centro, imagem, imagemSaida) {
@@ -155,7 +178,7 @@
         if (!cv.Mat) return;
 
         try {
-          const centro = new cv.Point(-1, -1);
+          const centro = new cv.Point(1, 1);
 
           const imagem = cv.imread(document.getElementById("canvasLimiarizado"));
           cv.cvtColor(imagem, imagem, cv.COLOR_RGB2GRAY, 0);
@@ -169,13 +192,13 @@
           erosao(nucleo, centro, imagem, imgErosao);
           dilatacao(nucleo, centro, imagem, imgDilatacao);
           abertura(nucleo, centro, imagem, imgAbertura);
-          fechamento(nucleo, centro, imagem, imgDilatacao);
+          fechamento(nucleo, centro, imagem, imgFechamento);
 
           // Exibe as imagens
           cv.imshow("canvasErosao", imgErosao);
           cv.imshow("canvasDilatacao", imgDilatacao);
-          cv.imshow("canvasAbertura", imgDilatacao);
-          cv.imshow("canvasFechamento", imgDilatacao);
+          cv.imshow("canvasAbertura", imgAbertura);
+          cv.imshow("canvasFechamento", imgFechamento);
 
           // Deleta as matrizes
           imagem.delete();
