@@ -134,9 +134,11 @@
         //Percorre a imagem
         for (let x = centro.x; x < imagem.cols; x++) {
           for (let y = centro.y; y < imagem.rows; y++) {
+
             //Verifica se o pixel da imagem possui valor positivo
             const pixelComValor = imagem.ucharPtr(y, x)[0] > 0;
             if (pixelComValor) {
+              
               //Percorre o elemento estruturante (núcleo)
               for (let j = 0; j < nucleo.cols; j++) {
                 for (let k = 0; k < nucleo.rows; k++) {

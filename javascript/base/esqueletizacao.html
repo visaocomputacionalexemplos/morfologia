@@ -1,73 +1,156 @@
+<head>
+  <meta charset="UTF-8">
+</head>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <body>
     <div style="border: thin solid black">
       <center>
-        <h2>OpenCV.js Limiarizacao</h2>
-        <p id="status">OpenCV.js</p>
+        <h2>OpenCV.js Esqueletização</h2>
+        <p id="cors" style="display: none;">
+          Ocorreu ao processar a imagem ao carregar a imagem do computador.
+          
+          Cors: Para permitir que a aplicação carrega imagens do computador é preciso abrir o navegador sem o sistema de segurança.
+          <br />
+          <strong>Google Chrome</strong>
+          <br/>
+          Windows: chrome.exe --disable-web-security --disable-gpu --user-data-dir=~/chromeTemp
+          <br/>
+          Linux: google-chrome --disable-web-security --disable-gpu --user-data-dir=~/chromeTemp
+          <br/><br/>
+          Uma alternativa a este é rodar a aplicação na nuvel ou local via https (ssl).
+          <br/><br/>
+          Uma terceira alternativa é informar uma imagem disponível na núvel.
+        </p>
+        
         <div>
-          <div class="row-align">
-            <video id="videoInput" autoplay width="480" height="360" muted="muted">
-              <source src="./videos/hands1.webm" type="video/webm">
-            </video>
-            <canvas id="canvasPretoBranco" width="480" height="360"></canvas>
+          <div>
+            <video autoPlay width="540" height="300" muted playsInline id="videoTag" src="../../videos/hands3.webm" loop></video>
+            <canvas id="canvasPretoBranco" width="540" height="300"></canvas>
+            <canvas id="canvasLimiarizado" width="540" height="300"></canvas>
           </div>
           <hr />
-          <div class="row-align">
-            <canvas id="canvasOutput" width="640" height="480"></canvas>
+
+          <div style="display: flex; justify-content: space-evenly;">
+            <div>
+              <h3>Esqueleto</h3>
+              <canvas id="canvasEsqueleto" width="900" height="500"></canvas>
+            </div>
           </div>
         </div>
       </center>
     </div>
 
     <script type="text/javascript">
-      /*Fix para usar imagem localmente*/
-      var video = document.getElementById("videoInput");
+      var cap = null, mat = null;
+      function carregarImagem() {
+        const video = document.getElementById("videoTag");
 
-      var src, pretoBranco, dst, cat, bgRemove;
-      /*Dispara loop após carregar opencv*/
-      function onOpenCvReady() {
-        video.crossOrigin = `Anonymous`;
-        video.play();
-
-        src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
-        pretoBranco = new cv.Mat(video.height, video.width, cv.CV_8UC1);
-        dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
         cap = new cv.VideoCapture(video);
+        
+        if (!cv.Mat || !cap) return;
+        console.log(video.height, video.width)
+        mat = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+      }
 
-        bgRemove = new cv.BackgroundSubtractorMOG2(500, 16, true);
+      function processarLimiarizacao() {
+        if (!cv.Mat || !cap || !mat) return;
 
-        loop();
+        try {
+          //Carrega a imagem
+          cap.read(mat);
+
+          // Converte em tons de cinza
+          cv.cvtColor(mat, mat, cv.COLOR_RGB2GRAY, 0);
+          cv.imshow("canvasPretoBranco", mat);
+
+          // Processa limiarização
+          cv.threshold(mat, mat, 220, 255, cv.THRESH_BINARY_INV);
+          cv.imshow("canvasLimiarizado", mat);
+
+          mat.delete();
+        } catch (err) {
+          console.log(err);
+          document.getElementById('cors').style.display = 'block';
+        }
+      }
+
+      function extrairEsqueleto(imagem, imagemSaida) {
+        // Inicializa as matrizes
+        const erosao = new cv.Mat(imagem.rows, imagem.cols, imagem.type());
+        const abertura = new cv.Mat(imagem.rows, imagem.cols, imagem.type());
+        const subtracao = new cv.Mat(imagem.rows, imagem.cols, imagem.type());
+
+        // Clona a imagem original
+        let clone = imagem.clone();
+        // Cria o núcleo(3x3) em formato de cruz
+        const nucleo = cv.getStructuringElement(cv.MORPH_CROSS, new cv.Size(3, 3), new cv.Point(-1, -1));
+
+        while (cv.countNonZero(clone) !== 0) {
+          cv.erode(clone, erosao, nucleo); 
+          cv.dilate(erosao, abertura, nucleo);
+
+          cv.subtract(clone, abertura, subtracao);
+          delete clone;
+
+          cv.bitwise_or(imagemSaida, subtracao, imagemSaida);
+
+          clone = erosao.clone();
+        }
+
+        // Deleta as variáveis temporárias
+        delete erosao;
+        delete abertura;
+        delete subtracao;
+        delete clone;
       }
 
       function processarCodigoPessoal() {
+        if (!cv.Mat) return;
+
         try {
-          cap.read(src);
+          const centro = new cv.Point(1, 1);
 
-          cv.cvtColor(src, pretoBranco, cv.COLOR_RGB2GRAY, 0);
-          cv.imshow("canvasPretoBranco", pretoBranco);
+          const imagem = cv.imread(document.getElementById("canvasLimiarizado"));
+          cv.cvtColor(imagem, imagem, cv.COLOR_RGB2GRAY, 0);
 
-          bgRemove.apply(pretoBranco, dst);
-          cv.imshow("canvasOutput", dst);
-          
+          const imgEsqueleto = new cv.Mat(imagem.rows,imagem.cols,imagem.type(),new cv.Scalar(0));
+
+          extrairEsqueleto(imagem, imgEsqueleto);
+
+          // Exibe as imagens
+          cv.imshow("canvasEsqueleto", imgEsqueleto);
+
+          // Deleta as matrizes
+          imagem.delete();
+          imgEsqueleto.delete();
         } catch (err) {
           console.log(err);
         }
       }
 
+      /*Dispara loop após carregar opencv*/
+      function onOpenCvReady() {
+        loop();
+      }
       /* Loop infinito */
-      const FPS = 10;
+      const FPS = 1;
       function loop() {
         var begin = Date.now();
+
+        carregarImagem();
+        processarLimiarizacao();
         processarCodigoPessoal();
-        var delay = 1000 / FPS - (Date.now() - begin);
+
+        var delay = 500 / FPS - (Date.now() - begin);
+
         setTimeout(loop, delay);
       }
     </script>
 
     <script
-      src="./opencv.js"
+      src="../../lib/opencv.js"
       type="text/javascript"
-      onload="setTimeout(onOpenCvReady, 200);"
+      onload="onOpenCvReady();"
     ></script>
   </body>
 </html>
